@@ -5,7 +5,7 @@
     <img src="https://user-images.githubusercontent.com/3139143/30776268-17b89fb6-a069-11e7-829a-0e9caf3b69bf.png" alt="drawing" width="200px" align="middle"/>
 </p>
 <br>
--- 
+--- 
 
 ### Table of contents
 
@@ -27,7 +27,7 @@ Pool Manager is responsible for managing pool of workers which are handling requ
 
 Pool manager can have defined min and max number of workers - where both are optional. In case where max is not defined - then pool will spawn as many workers as needed to handle all incoming connections.
 
--- 
+--- 
 
 #### <a name="pm-callbackhandler">Callback handler</a>
 
@@ -48,7 +48,7 @@ callback := func(conn net.Conn, requestBody []byte, requestBodyLen int) {
 }
 ```
 
---
+---
 
 #### <a name="pm-managerconfig">ManagerConfig</a>
 Config is passed over during creation of new pool manager.
@@ -64,7 +64,7 @@ ManagerConfig struct {
 }
 ```
 
---
+---
 
 #### Methods
 
@@ -89,7 +89,7 @@ poolManager := pool.CreateManager(managerConfig)
 ```
 <small>Ref: [ManagerConfig](#pm-managerconfig)</small>
 
--- 
+--- 
 
 ##### <a name="pm-m-start">func (m *Manager) Start() error</a>
 Use this method to run pool manager based on configuration passed over during creation of new manager. 
@@ -97,7 +97,7 @@ This method will create as many workers as specified in `ManagerConfig.MinWorker
 
 Returns error if manager is already running.
 
---
+---
 
 ##### <a name="pm-m-put">func (m *Manager) Put(conn net.Conn) error</a>
 Use this method to put new client connection to the pool to be processed by one of workers. If you have defined min number of workers and they are not busy - connection will be passed over right away to a free worker, thanks for that connection can be processed faster beacuse we are not wasting time to spawn a new worker. 
@@ -118,17 +118,17 @@ if errPut != nil {
 }
 ```
 
---
+---
 
 ##### <a name="pm-m-config">func (m *Manager) Config() ManagerConfig</a>
 Use this method to return current pool manager config values. It will return [ManagerConfig](#pm-managerconfig) struct.
 
---
+---
 
 ##### <a name="pm-m-setconfig">func (m *Manager) SetConfig(config ManagerConfig) ManagerConfig</a>
 Use this method to set new config for pool manager. You can update configuration settings while pool manager is working - if for example you would like to adjust number of min workers.  It will return [ManagerConfig](#pm-managerconfig) struct.
 
---
+---
 
 ##### <a name="pm-m-stop">func (m *Manager) Stop()</a>
 Stop will gracefully shutdown pool manager - will wait for all busy workers to finish their job and then will kill all of them. It is safe to usu `Start()` again later in code in order to run pool manager again.
