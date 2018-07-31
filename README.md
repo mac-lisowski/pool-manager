@@ -5,6 +5,7 @@
     <img src="https://user-images.githubusercontent.com/3139143/30776268-17b89fb6-a069-11e7-829a-0e9caf3b69bf.png" alt="drawing" width="200px" align="middle"/>
 </p>
 <br>
+
 --- 
 
 ### Table of contents
@@ -191,10 +192,10 @@ func poolCallback(conn net.Conn, requestBody []byte, requestBodyLen int) {
 }
 ```
 
---
+---
 
 This package is under MIT License (MIT). Please see LICENSE file for more details.
 
 Copyright (c) 2018 Maciej Lisowski
 
---
+---
