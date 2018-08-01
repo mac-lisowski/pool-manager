@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"bufio"
 	"errors"
 	"log"
 	"net"
@@ -228,10 +229,10 @@ func (m *Manager) readConn(client net.Conn, deadline time.Duration) ([]byte, err
 		n          int
 	)
 
+	// using bufo reader to limit syscalls
+	buf := bufio.NewReader(client)
 	for {
-		m.setDeadline(client, deadline)
-
-		n, err = client.Read(tmpBuffer)
+		n, err = buf.Read(tmpBuffer)
 		if err != nil {
 			return clientData, err
 		}
