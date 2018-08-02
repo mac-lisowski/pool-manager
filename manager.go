@@ -14,7 +14,7 @@ type (
 	// Manager responsible for managing pool of connections
 	Manager struct {
 		config      ManagerConfig
-		callback    func(conn net.Conn, requestBody []byte, requestBodyLen int)
+		callback    func(conn Connection)
 		pool        workersPool
 		killCleaner chan bool
 		isStop      bool
@@ -31,7 +31,7 @@ type (
 )
 
 // CreateManager creates new pool manager
-func CreateManager(config ManagerConfig, callback func(conn net.Conn, requestBody []byte, requestBodyLen int)) Manager {
+func CreateManager(config ManagerConfig, callback func(conn Connection)) Manager {
 
 	return Manager{
 		config:      checkConfig(config),
@@ -40,7 +40,7 @@ func CreateManager(config ManagerConfig, callback func(conn net.Conn, requestBod
 		isStop:      true,
 		pool: workersPool{
 			workersMux: new(sync.RWMutex),
-			workersChn: make(chan net.Conn),
+			workersChn: make(chan Connection),
 		},
 	}
 }
@@ -65,7 +65,7 @@ func (m *Manager) Start() error {
 }
 
 // Put used to add new connection to the pool
-func (m *Manager) Put(conn net.Conn) error {
+func (m *Manager) Put(conn net.Conn, connType int) error {
 	if m.config.Debug == true {
 		log.Println("[pool]: Put new connection")
 	}
@@ -79,7 +79,10 @@ func (m *Manager) Put(conn net.Conn) error {
 	}
 	atomic.AddInt32(&m.pool.workersBusyCount, 1)
 
-	m.pool.workersChn <- m.setDeadline(conn, m.config.ClientsDeadline)
+	m.pool.workersChn <- Connection{
+		Conn:     m.setDeadline(conn, m.config.ClientsDeadline),
+		ConnType: connType,
+	}
 	return nil
 }
 
@@ -141,45 +144,45 @@ func (m *Manager) spawnWorker() {
 	go worker.handler(worker, m.pool.workersChn)
 }
 
-func (m *Manager) worker(w *worker, conns chan net.Conn) {
+func (m *Manager) worker(w *worker, conns chan Connection) {
 
-	workToDo := func(w *worker, conns chan net.Conn) bool {
-		for {
-			select {
-			case <-w.kill:
-				w.setState(WorkerStateKilled)
-				return true
-			case conn := <-conns:
-				w.setState(WorkerStateBusy)
+	// workToDo := func(w *worker, conns chan Connection) bool {
+	for {
+		select {
+		case <-w.kill:
+			w.setState(WorkerStateKilled)
+			return
+		case c := <-conns:
+			w.setState(WorkerStateBusy)
 
-				errConn := m.checkConnection(conn)
+			errConn := m.checkConnection(c.Conn)
 
-				if errConn != nil {
-					conn.Close()
-					w.setState(WorkerStateIdle)
-					continue
-				}
-
-				for {
-					// pseudo rate limiter - this could be extended to allow to limit rate of reuqests
-					time.Sleep(100 * time.Nanosecond)
-
-					connBody, err := m.readConn(conn, m.config.ClientsDeadline)
-					if err != nil {
-						conn.Close()
-						break
-					}
-
-					// send body request to callback
-					m.callback(conn, connBody, len(connBody))
-				}
+			if errConn != nil {
+				c.Conn.Close()
 				w.setState(WorkerStateIdle)
-				atomic.AddInt32(&m.pool.workersBusyCount, -1)
+				continue
 			}
+
+			for {
+				// pseudo rate limiter - this could be extended to allow to limit rate of reuqests
+				time.Sleep(100 * time.Nanosecond)
+
+				connBody, err := m.readConn(c, m.config.ClientsDeadline)
+
+				if err != nil {
+					c.Conn.Close()
+					break
+				}
+				c.Body = connBody
+				c.BodyLen = len(connBody)
+
+				// send body request to callback
+				go m.callback(c)
+			}
+			w.setState(WorkerStateIdle)
+			atomic.AddInt32(&m.pool.workersBusyCount, -1)
 		}
 	}
-
-	workToDo(w, conns)
 }
 
 // cleaner runs every 2s
@@ -221,16 +224,15 @@ func (m *Manager) cleaner() {
 	}
 }
 
-func (m *Manager) readConn(client net.Conn, deadline time.Duration) ([]byte, error) {
+func (m *Manager) readConn(c Connection, deadline time.Duration) ([]byte, error) {
 	var (
 		tmpBuffer  = make([]byte, m.config.BufferSize)
 		clientData = make([]byte, 0)
 		err        error
 		n          int
 	)
-
+	buf := bufio.NewReader(c.Conn)
 	// using bufo reader to limit syscalls
-	buf := bufio.NewReader(client)
 	for {
 		n, err = buf.Read(tmpBuffer)
 		if err != nil {

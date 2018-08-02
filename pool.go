@@ -12,9 +12,23 @@ type (
 		workers          []*worker
 		workersCount     int32
 		workersBusyCount int32
-		workersChn       chan net.Conn
+		workersChn       chan Connection
 		workersMux       *sync.RWMutex
 	}
+
+	Connection struct {
+		Conn     net.Conn
+		ConnType int
+		Body     []byte
+		BodyLen  int
+	}
+)
+
+const (
+	CONN_TCP = iota
+	CONN_UNIX
+	CONN_WS
+	CONN_HTTP
 )
 
 var (

@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"net"
 	"sync"
 )
 
@@ -15,7 +14,7 @@ type (
 	}
 
 	// workerHandler represents interface for pool worker method
-	workerHandler func(worker *worker, conns chan net.Conn)
+	workerHandler func(worker *worker, conns chan Connection)
 )
 
 const (
